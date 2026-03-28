@@ -50,7 +50,29 @@
       if(statusEl) statusEl.textContent = '☁️ متزامن';
     } else {
       window._fbUser = null;
-      btn.innerHTML = '🔐 تسجيل دخول';
+      onAuthStateChanged(fbAuth, async (user) => {
+    const btn = document.getElementById('authBtn'); // التأكد من وجود الزرار
+    const statusEl = document.getElementById('syncStatus');
+    
+    if (user) {
+      window._fbUser = user;
+      if(btn) btn.innerHTML = `<span>${user.displayName.split(' ')[0]}</span> | خروج`;
+      
+      if(statusEl) statusEl.textContent = '🔄 جاري المزامنة...';
+      
+      const snap = await getDoc(doc(fbDb, "portfolios", user.uid));
+      if (snap.exists()) {
+        window.DB = snap.data().db;
+        // تأكد من وجود الـ settings بعد التحميل
+        if(!window.DB.settings) window.DB.settings = {riskFreeRate:27};
+        
+        localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
+        if(typeof renderDashboard === 'function') renderDashboard();
+      }
+      if(statusEl) statusEl.textContent = '☁️ متزامن';
+    } else {
+      window._fbUser = null;
+      if(btn) btn.innerHTML = '🔐 تسجيل دخول';
       if(statusEl) statusEl.textContent = '💾 محلي';
     }
   });
@@ -1994,7 +2016,9 @@ body::after {
 const STORE_KEY = 'egxpro_v2';
 let DB = JSON.parse(localStorage.getItem(STORE_KEY) || JSON.stringify({ holdings:[], transactions:[], dividends:[], settings:{riskFreeRate:27} }));
 // تأكد إن الإعدادات موجودة في البيانات القديمة
-if(!DB.settings) DB.settings = {riskFreeRate:27};
+// تأكد إن DB موجودة أولاً
+if (!window.DB) window.DB = { holdings: [], transactions: [], dividends: [], settings: {riskFreeRate:27} };
+if (!window.DB.settings) window.DB.settings = {riskFreeRate:27};
 let txType = 'buy';
 let updateTicker = null;
 let holdingsView = 'performance';
