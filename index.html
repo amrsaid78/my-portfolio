@@ -7,20 +7,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase SDKs via compat -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" onerror="console.error('Firebase app failed to load')"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js" onerror="console.error('Firebase auth failed to load')"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js" onerror="console.error('Firebase firestore failed to load')"></script>
-<script>
-// تأكد إن Firebase اتحمل صح
-if(typeof firebase === 'undefined') {
-  console.error('Firebase not loaded! Check network/adblocker');
-  document.addEventListener('DOMContentLoaded', function() {
-    const el = document.getElementById('syncStatus');
-    if(el) el.textContent = '❌ Firebase لم يتحمل';
-    const btn = document.getElementById('authBtn');
-    if(btn) { btn.textContent = '❌ تحقق من الاتصال'; btn.style.background = '#666'; }
-  });
-} else {
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
   const firebaseConfig = {
     apiKey: "AIzaSyDSfuKZXObEKPGDWX0f_qr-Kzu64Zi0Zkg",
     authDomain: "egx-pro-72091.firebaseapp.com",
@@ -30,101 +21,51 @@ if(typeof firebase === 'undefined') {
     appId: "1:134102443994:web:ab39e2439ce657fdb302e3"
   };
 
-  firebase.initializeApp(firebaseConfig);
-  const fbAuth = firebase.auth();
-  const fbDb   = firebase.firestore();
+  const app = initializeApp(firebaseConfig);
+  const fbAuth = getAuth(app);
+  const fbDb = getFirestore(app);
 
-  // Auth state
-  fbAuth.onAuthStateChanged(async function(user) {
-    const btn      = document.getElementById('authBtn');
+  window.handleAuth = async () => {
+    if (fbAuth.currentUser) {
+      if(confirm('تسجيل خروج؟')) await signOut(fbAuth);
+    } else {
+      const provider = new GoogleAuthProvider();
+      try { await signInWithPopup(fbAuth, provider); } catch (e) { alert(e.message); }
+    }
+  };
+
+  onAuthStateChanged(fbAuth, async (user) => {
+    const btn = document.getElementById('authBtn');
     const statusEl = document.getElementById('syncStatus');
-    if(user) {
+    if (user) {
       window._fbUser = user;
-      if(btn) {
-        btn.innerHTML = '<img src="'+user.photoURL+'" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;margin-left:4px;"> <span>'+user.displayName.split(' ')[0]+'</span> <span style="font-size:10px;opacity:0.7;">| خروج</span>';
-        btn.onclick = function(){ fbAuth.signOut(); };
+      btn.innerHTML = `<span>${user.displayName.split(' ')[0]}</span> | خروج`;
+      if(statusEl) statusEl.textContent = '🔄 جاري المزامنة...';
+      const snap = await getDoc(doc(fbDb, "portfolios", user.uid));
+      if (snap.exists()) {
+        window.DB = snap.data().db;
+        localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
+        if(typeof renderDashboard === 'function') renderDashboard();
       }
-      if(statusEl) statusEl.textContent = '🔄 جاري التحميل...';
-      try {
-        const snap = await fbDb.collection('portfolios').doc(user.uid).get();
-        if(snap.exists) {
-          const data = snap.data();
-          if(data && data.db) {
-            window.DB = data.db;
-            if(!window.DB.settings)  window.DB.settings  = {riskFreeRate:27};
-            if(!window.DB.watchlist) window.DB.watchlist = [];
-            if(!window.DB.alerts)    window.DB.alerts    = [];
-            localStorage.setItem('egxpro_v2', JSON.stringify(window.DB));
-            if(typeof renderDashboard==='function') renderDashboard();
-            if(typeof renderTerms==='function') renderTerms();
-          }
-          if(statusEl) statusEl.textContent = '☁️ متزامن';
-        } else {
-          if(statusEl) statusEl.textContent = '⬆️ رفع البيانات...';
-          await window.saveToFirebase();
-          if(statusEl) statusEl.textContent = '☁️ متزامن';
-        }
-      } catch(e) {
-        console.error('Firebase load error:', e.code, e.message);
-        if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message);
-      }
+      if(statusEl) statusEl.textContent = '☁️ متزامن';
     } else {
       window._fbUser = null;
-      if(btn) {
-        btn.innerHTML = '🔐 تسجيل دخول';
-        btn.onclick = function(){
-          var provider = new firebase.auth.GoogleAuthProvider();
-          fbAuth.signInWithPopup(provider).catch(function(e){
-            console.error('Login error:', e);
-            alert('خطأ في تسجيل الدخول:\n' + e.message);
-          });
-        };
-      }
-      if(statusEl) statusEl.textContent = '💾 محلي فقط';
+      btn.innerHTML = '🔐 تسجيل دخول';
+      if(statusEl) statusEl.textContent = '💾 محلي';
     }
   });
 
-  window.saveToFirebase = async function() {
-    if(!window._fbUser) return;
-    if(!window.DB || !window.DB.holdings) return;
-    const statusEl = document.getElementById('syncStatus');
+  window.saveToFirebase = async () => {
+    if (!fbAuth.currentUser || !window.DB) return;
     try {
-      function cleanObj(obj) {
-        if(obj === null || obj === undefined) return null;
-        if(Array.isArray(obj)) return obj.map(cleanObj);
-        if(typeof obj === 'object') {
-          const clean = {};
-          Object.keys(obj).forEach(k => {
-            const v = obj[k];
-            if(v !== undefined) clean[k] = cleanObj(v);
-          });
-          return clean;
-        }
-        return obj;
-      }
-      const cleanDB = cleanObj(JSON.parse(JSON.stringify(window.DB, function(k,v){ return v===undefined?null:v; })));
-      if(cleanDB.holdings) {
-        cleanDB.holdings.forEach(h => {
-          if(h.priceHistory && h.priceHistory.length > 60)
-            h.priceHistory = h.priceHistory.slice(-60);
-        });
-      }
-      await fbDb.collection('portfolios').doc(window._fbUser.uid).set({
-        db: cleanDB,
-        updatedAt: new Date().toISOString(),
-        userEmail: window._fbUser.email || '',
-        userName:  window._fbUser.displayName || ''
+      await setDoc(doc(fbDb, "portfolios", fbAuth.currentUser.uid), {
+        db: window.DB,
+        updatedAt: new Date().toISOString()
       });
-      const kb = Math.round(JSON.stringify(cleanDB).length/1024);
-      if(statusEl) statusEl.textContent = '☁️ متزامن (' + kb + 'KB)';
-    } catch(e) {
-      console.error('Firebase save error:', e.code, e.message);
-      if(statusEl) statusEl.textContent = '⚠️ ' + (e.code || e.message || 'خطأ في الحفظ');
-    }
+      if(document.getElementById('syncStatus')) document.getElementById('syncStatus').textContent = '☁️ تم الحفظ';
+    } catch (e) { console.error(e); }
   };
-}
 </script>
-
 
 <style>
 :root {
@@ -835,7 +776,7 @@ body::after {
     <button onclick="exportData()" style="background:none;border:1px solid rgba(212,168,67,0.5);border-radius:8px;padding:6px 12px;color:var(--gold);font-family:var(--font-ar);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;" title="احفظ بياناتك كملف">💾 تصدير</button>
     <label style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px 12px;color:var(--text-2);font-family:var(--font-ar);font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;" title="استيراد بيانات محفوظة">📂 استيراد<input type="file" accept=".json" onchange="importData(event)" style="display:none;"></label>
     <span id="syncStatus" style="font-size:11px;color:var(--text-3);padding:4px 8px;background:var(--bg-3);border-radius:6px;border:1px solid var(--border);white-space:nowrap;">💾 محلي</span>
-    <button id="authBtn" style="background:linear-gradient(135deg,#4285f4,#34a853);border:none;border-radius:8px;padding:6px 14px;color:white;font-family:var(--font-ar);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">🔐 تسجيل دخول</button>
+    <button id="handleAuth" style="background:linear-gradient(135deg,#4285f4,#34a853);border:none;border-radius:8px;padding:6px 14px;color:white;font-family:var(--font-ar);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">🔐 تسجيل دخول</button>
       <div class="live-badge"><div class="pulse"></div>EGX LIVE</div>
       <div class="topbar-date" id="topDate"></div>
     </div>
@@ -2079,14 +2020,17 @@ const SECTOR_COLORS = {
 const PALETTE = ['#d4a843','#4da6ff','#00d4b8','#a78bfa','#fb923c','#4ade80','#f472b6','#facc15','#94a3b8','#64748b'];
 
 function save() {
-  // تنظيف undefined قبل الحفظ
-  const cleanJson = JSON.stringify(DB, function(key, value) {
+  // تحويل البيانات لنص لتخزينها محلياً وتنظيفها
+  const cleanJson = JSON.stringify(window.DB, function(key, value) {
     return value === undefined ? null : value;
   });
-  localStorage.setItem(STORE_KEY, cleanJson);
-  // تحديث DB بنسخة نظيفة
-  DB = JSON.parse(cleanJson);
-  // حفظ على Firebase
+  
+  localStorage.setItem('egxpro_v2', cleanJson);
+  
+  // تحديث الـ DB بالنسخة النظيفة
+  window.DB = JSON.parse(cleanJson);
+  
+  // إرسال للسحابة فوراً إذا كان المحرك الجديد جاهزاً
   if(window.saveToFirebase) {
     window.saveToFirebase();
   }
