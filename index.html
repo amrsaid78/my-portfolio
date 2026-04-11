@@ -6,8 +6,6 @@
 <title>EGX Pro — نظام إدارة المحافظ</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
 <style>
 :root {
@@ -713,6 +711,9 @@ body::after {
 /* ===== RESPONSIVE ===== */
 @media(max-width:900px) {
   .portfolio-row1 { grid-template-columns: 1fr !important; }
+  .portfolio-row2 { grid-template-columns: repeat(3,1fr) !important; }
+}
+@media(max-width:600px) {
   .portfolio-row2 { grid-template-columns: repeat(2,1fr) !important; }
 }
 
@@ -1100,43 +1101,50 @@ body::after {
     <!-- ======= TAB 1: تحليل المحفظة ======= -->
     <div class="atab-content active" id="atab-portfolio">
 
-      <!-- السطر الأول: أداء المحفظة + Snowflake -->
-      <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;margin-bottom:16px;" class="portfolio-row1">
+      <!-- السطر الأول: رسم بياني الأداء + Snowflake -->
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:16px;margin-bottom:14px;" class="portfolio-row1">
 
-        <!-- مربع الأداء الكبير -->
-        <div class="panel" style="padding:0;">
-          <div style="padding:20px 24px;">
-            <div style="font-size:11px;color:var(--text-3);font-weight:700;margin-bottom:12px;letter-spacing:1px;">أداء المحفظة</div>
+        <!-- مربع الأداء الكبير + رسم بياني -->
+        <div class="panel" style="padding:0;overflow:hidden;">
+          <!-- أرقام فوق -->
+          <div style="padding:16px 22px 10px;display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end;">
             <div id="portfolioMainMetrics"></div>
           </div>
-          <div style="border-top:1px solid var(--border);padding:16px 24px;">
+          <!-- رسم بياني الأداء -->
+          <div style="height:160px;padding:0 12px 12px;position:relative;">
+            <canvas id="portfolioPerfChart"></canvas>
+          </div>
+          <!-- مقارنة بالمؤشرات -->
+          <div style="border-top:1px solid var(--border);padding:10px 22px;">
             <div id="portfolioBenchmark"></div>
           </div>
         </div>
 
         <!-- مربع Snowflake -->
-        <div class="panel" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
-          <div style="font-size:11px;color:var(--text-3);font-weight:700;margin-bottom:12px;letter-spacing:1px;align-self:flex-start;">مؤشرات المخاطر</div>
-          <canvas id="snowflakeCanvas" width="200" height="200"></canvas>
-          <div id="snowflakeLabels" style="margin-top:12px;width:100%;"></div>
+        <div class="panel" style="padding:16px;display:flex;flex-direction:column;align-items:center;">
+          <div style="font-size:11px;color:var(--text-3);font-weight:700;margin-bottom:8px;letter-spacing:1px;align-self:flex-start;">مؤشرات المخاطر</div>
+          <div style="position:relative;width:180px;height:180px;">
+            <canvas id="snowflakeCanvas" width="180" height="180"></canvas>
+            <!-- tooltip -->
+            <div id="snowflakeTooltip" style="display:none;position:absolute;background:var(--bg-1);border:1px solid var(--border-bright);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text);pointer-events:none;z-index:10;min-width:140px;"></div>
+          </div>
+          <div id="snowflakeLabels" style="margin-top:8px;width:100%;"></div>
         </div>
 
       </div>
 
-      <!-- السطر الثاني: الـ 4 مربعات -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;" id="portfolio4KPIs" class="portfolio-row2"></div>
+      <!-- السطر الثاني: 5 مربعات -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;" id="portfolio4KPIs" class="portfolio-row2"></div>
 
-      <!-- السطر الثالث: الجدول الكامل -->
+      <!-- السطر الثالث: الجدول -->
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title"><div class="panel-icon gold">📋</div>تفاصيل الأسهم — مرتبة حسب الأداء</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <div style="position:relative;" id="exportDropWrapper">
-              <button onclick="toggleExportDrop()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-3);font-family:var(--font-ar);font-size:11px;font-weight:700;cursor:pointer;">📤 تصدير ▾</button>
-              <div id="exportDropMenu" style="display:none;position:absolute;left:0;top:calc(100%+4px);background:var(--bg-2);border:1px solid var(--border-bright);border-radius:8px;padding:6px;min-width:130px;z-index:99;flex-direction:column;gap:2px;">
-                <button onclick="exportTableExcel()" style="background:none;border:none;padding:7px 12px;color:var(--text-2);font-family:var(--font-ar);font-size:12px;cursor:pointer;border-radius:6px;text-align:right;width:100%;">📊 Excel</button>
-                <button onclick="exportTablePDF()" style="background:none;border:none;padding:7px 12px;color:var(--text-2);font-family:var(--font-ar);font-size:12px;cursor:pointer;border-radius:6px;text-align:right;width:100%;">📋 PDF</button>
-              </div>
+          <div style="position:relative;" id="exportDropWrapper">
+            <button onclick="toggleExportDrop()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-3);font-family:var(--font-ar);font-size:11px;font-weight:700;cursor:pointer;">📤 تصدير ▾</button>
+            <div id="exportDropMenu" style="display:none;position:absolute;left:0;top:calc(100%+4px);background:var(--bg-2);border:1px solid var(--border-bright);border-radius:8px;padding:6px;min-width:130px;z-index:99;flex-direction:column;gap:2px;">
+              <button onclick="exportTableExcel()" style="background:none;border:none;padding:7px 12px;color:var(--text-2);font-family:var(--font-ar);font-size:12px;cursor:pointer;border-radius:6px;text-align:right;width:100%;">📊 Excel</button>
+              <button onclick="exportTablePDF()" style="background:none;border:none;padding:7px 12px;color:var(--text-2);font-family:var(--font-ar);font-size:12px;cursor:pointer;border-radius:6px;text-align:right;width:100%;">📋 PDF</button>
             </div>
           </div>
         </div>
@@ -2082,20 +2090,6 @@ body::after {
 </div>
 
 <script>
-  // --- إعدادات Firebase الكاملة من كودك الأصلي ---
-const firebaseConfig = {
-  apiKey: "AIzaSyDMwl3AoR0RhtDzp6c-MqflIYDwIAPmAS0",
-  authDomain: "cl-egx-pro-portfolio.firebaseapp.com",
-  projectId: "cl-egx-pro-portfolio",
-  storageBucket: "cl-egx-pro-portfolio.firebasestorage.app",
-  messagingSenderId: "686323334631",
-  appId: "1:686323334631:web:bfd15af9514845ebddd142",
-  measurementId: "G-HGXPYDNNW7"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-
 // ============================================================
 //  STATE
 // ============================================================
@@ -3099,33 +3093,117 @@ function renderPortfolioMainMetrics() {
   const el = document.getElementById('portfolioMainMetrics');
   if(!el) return;
   const {totalCost, totalVal, totalPnL, totalDiv} = getPortfolioTotals();
+  const pnlPct  = totalCost>0?(totalPnL/totalCost*100):0;
   const totalReturn = totalPnL + totalDiv;
-  const pnlPct = totalCost>0?(totalPnL/totalCost*100):0;
   const retPct  = totalCost>0?(totalReturn/totalCost*100):0;
-  const egx30 = DB.settings?.egx30 || 0;
 
   el.innerHTML = `
-    <div style="display:flex;gap:32px;flex-wrap:wrap;align-items:flex-end;">
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-end;">
       <div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">إجمالي قيمة المحفظة</div>
-        <div style="font-family:var(--font-mono);font-size:28px;font-weight:900;color:var(--text);">${fmt(totalVal)} <span style="font-size:14px;color:var(--text-3);">ج.م</span></div>
-        <div style="font-size:11px;color:var(--text-3);margin-top:2px;">${DB.holdings.length} سهم · تكلفة ${fmt(totalCost)}</div>
+        <div style="font-size:10px;color:var(--text-3);margin-bottom:3px;">إجمالي قيمة المحفظة</div>
+        <div style="font-family:var(--font-mono);font-size:24px;font-weight:900;color:var(--text);">${fmt(totalVal)}<span style="font-size:12px;color:var(--text-3);margin-right:4px;"> ج.م</span></div>
+        <div style="font-size:10px;color:var(--text-3);">${DB.holdings.length} سهم · تكلفة ${fmt(totalCost)}</div>
       </div>
       <div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">الربح / الخسارة</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:${totalPnL>=0?'var(--green)':'var(--red)'};">${sign(totalPnL)}${fmt(totalPnL)}</div>
-        <div style="font-size:12px;font-weight:700;color:${pnlPct>=0?'var(--green)':'var(--red)'};">${sign(pnlPct)}${fmt(pnlPct,1)}%</div>
+        <div style="font-size:10px;color:var(--text-3);margin-bottom:3px;">الربح / الخسارة</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:${totalPnL>=0?'var(--green)':'var(--red)'};">${sign(totalPnL)}${fmt(totalPnL)}</div>
+        <div style="font-size:11px;font-weight:700;color:${pnlPct>=0?'var(--green)':'var(--red)'};">${sign(pnlPct)}${fmt(pnlPct,1)}%</div>
       </div>
       <div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">العائد الكلي (+ توزيعات)</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:${totalReturn>=0?'var(--gold)':'var(--red)'};">${sign(totalReturn)}${fmt(totalReturn)}</div>
-        <div style="font-size:12px;font-weight:700;color:${retPct>=0?'var(--gold)':'var(--red)'};">${sign(retPct)}${fmt(retPct,1)}%</div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px;">توزيعات محصّلة</div>
-        <div style="font-family:var(--font-mono);font-size:22px;font-weight:800;color:var(--teal);">+${fmt(totalDiv)}</div>
+        <div style="font-size:10px;color:var(--text-3);margin-bottom:3px;">العائد الكلي</div>
+        <div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:${totalReturn>=0?'var(--gold)':'var(--red)'};">${sign(totalReturn)}${fmt(totalReturn)}</div>
+        <div style="font-size:11px;color:var(--text-3);">ر/خ + توزيعات ${fmt(totalDiv)}</div>
       </div>
     </div>`;
+
+  // رسم منحنى الأداء
+  renderPortfolioPerfChart();
+}
+
+let _perfChartInst = null;
+function renderPortfolioPerfChart() {
+  const canvas = document.getElementById('portfolioPerfChart');
+  if(!canvas) return;
+
+  // جمع بيانات التاريخ
+  const allDates = new Set();
+  DB.holdings.forEach(h => { if(h.priceHistory) h.priceHistory.forEach(p=>allDates.add(p.d)); });
+  const dates = [...allDates].sort();
+
+  if(_perfChartInst) { _perfChartInst.destroy(); _perfChartInst=null; }
+
+  if(dates.length < 2) {
+    // بار شارت بسيط لو مفيش تاريخ
+    const {totalCost,totalVal} = getPortfolioTotals();
+    const pct = totalCost>0?(totalVal-totalCost)/totalCost*100:0;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = pct>=0?'rgba(0,230,118,0.15)':'rgba(255,77,109,0.15)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = pct>=0?'var(--green)':'var(--red)';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${pct>=0?'+':''}${pct.toFixed(1)}%`, canvas.width/2, canvas.height/2);
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#8899b0';
+    ctx.fillText('حدّث الأسعار يومياً للحصول على الرسم البياني', canvas.width/2, canvas.height/2+28);
+    return;
+  }
+
+  // حساب قيمة المحفظة في كل يوم
+  const {totalCost} = getPortfolioTotals();
+  const portValues = dates.map(date => {
+    let val = 0;
+    DB.holdings.forEach(h => {
+      const hist = h.priceHistory ? [...h.priceHistory].filter(p=>p.d<=date) : [];
+      const price = hist.length ? hist[hist.length-1].p : h.currentPrice;
+      val += h.qty * price;
+    });
+    return totalCost>0 ? ((val-totalCost)/totalCost*100) : 0;
+  });
+
+  const isDark = !document.body.classList.contains('light-mode');
+  const lineColor = portValues[portValues.length-1]>=0?'#00e676':'#ff4d6d';
+  const fillColor = portValues[portValues.length-1]>=0?'rgba(0,230,118,0.1)':'rgba(255,77,109,0.1)';
+
+  _perfChartInst = new Chart(canvas, {
+    type:'line',
+    data:{
+      labels: dates,
+      datasets:[{
+        label:'أداء المحفظة %',
+        data: portValues,
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        fill:true, tension:0.3,
+        pointRadius:0, borderWidth:2,
+        spanGaps:true
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#111d30',
+          callbacks:{
+            label: c=>`${c.raw>=0?'+':''}${c.raw?.toFixed(1)}%`
+          }
+        }
+      },
+      scales:{
+        x:{
+          grid:{color:'rgba(255,255,255,0.03)'},
+          ticks:{color:'#4a5d78',font:{size:9},maxTicksLimit:6}
+        },
+        y:{
+          grid:{color:'rgba(255,255,255,0.04)'},
+          ticks:{color:'#4a5d78',font:{size:9},callback:v=>v+'%'}
+        }
+      }
+    }
+  });
 }
 
 function renderPortfolioBenchmark() {
@@ -3160,9 +3238,173 @@ function renderPortfolioBenchmark() {
 }
 
 // ============================================================
-//  Snowflake Chart
+//  Snowflake Chart مع Tooltip
 // ============================================================
 function renderSnowflake() {
+  const canvas = document.getElementById('snowflakeCanvas');
+  const lblEl  = document.getElementById('snowflakeLabels');
+  const tooltip = document.getElementById('snowflakeTooltip');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const h = DB.holdings;
+  if(!h.length) { ctx.clearRect(0,0,180,180); return; }
+
+  const {totalCost, totalVal, totalPnL, totalDiv} = getPortfolioTotals();
+  const riskFree = getRiskFreeRate();
+  const portPct  = totalCost>0?(totalPnL/totalCost*100):0;
+  const returns  = h.map(x=>x.avgPrice>0?(x.currentPrice-x.avgPrice)/x.avgPrice*100:0);
+  const avgRet   = returns.reduce((s,r)=>s+r,0)/returns.length;
+  const stdDev   = Math.sqrt(returns.reduce((s,r)=>s+Math.pow(r-avgRet,2),0)/returns.length);
+  const sharpeRaw= stdDev>0?((portPct-riskFree)/stdDev):0;
+  const weights  = h.map(x=>(x.qty*x.currentPrice)/totalVal);
+  const hhi      = weights.reduce((s,w)=>s+Math.pow(w,2),0);
+  const sectors  = [...new Set(h.map(x=>x.sector||'أخرى'))].length;
+  const divYield = totalVal>0?(totalDiv/totalVal*100):0;
+  const withBeta = h.filter(x=>x.beta);
+  const avgBeta  = withBeta.length?withBeta.reduce((s,x)=>s+x.beta,0)/withBeta.length:1;
+
+  const axes = [
+    { label:'الأداء',     score:Math.min(Math.max(portPct/50,0),1),      detail:`${sign(portPct)}${fmt(portPct,1)}% عائد المحفظة`, color:'#d4a843' },
+    { label:'التوزيعات', score:Math.min(Math.max(divYield/15,0),1),      detail:`${fmt(divYield,1)}% عائد توزيعات`, color:'#00d4b8' },
+    { label:'التنويع',   score:Math.min(Math.max((sectors-1)/7,0),1),    detail:`${sectors} قطاع · ${h.length} سهم`, color:'#4da6ff' },
+    { label:'Sharpe',    score:Math.min(Math.max((sharpeRaw+2)/4,0),1),  detail:`${fmt(sharpeRaw,2)} — ${sharpeRaw>=1?'ممتاز':sharpeRaw>=0?'مقبول':'ضعيف'}`, color:'#00e676' },
+    { label:'تركز',      score:Math.min(Math.max(1-hhi,0),1),            detail:`HHI ${fmt(hhi,3)} — ${hhi<0.25?'منخفض':hhi<0.4?'متوسط':'مرتفع'}`, color:'#ff4d6d' },
+  ];
+
+  const cx=90, cy=90, R=70, n=5;
+  ctx.clearRect(0,0,180,180);
+
+  // شبكة خلفية
+  for(let r=0.25; r<=1; r+=0.25) {
+    ctx.beginPath();
+    for(let i=0;i<n;i++) {
+      const ang=(i/n)*2*Math.PI-Math.PI/2;
+      const x=cx+R*r*Math.cos(ang), y=cy+R*r*Math.sin(ang);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=1; ctx.stroke();
+  }
+  // محاور
+  for(let i=0;i<n;i++) {
+    const ang=(i/n)*2*Math.PI-Math.PI/2;
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+R*Math.cos(ang), cy+R*Math.sin(ang));
+    ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.stroke();
+  }
+  // المنطقة الملوّنة
+  ctx.beginPath();
+  for(let i=0;i<n;i++) {
+    const ang=(i/n)*2*Math.PI-Math.PI/2;
+    const r=Math.max(axes[i].score,0.05);
+    const x=cx+R*r*Math.cos(ang), y=cy+R*r*Math.sin(ang);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(212,168,67,0.2)'; ctx.fill();
+  ctx.strokeStyle='rgba(212,168,67,0.8)'; ctx.lineWidth=2; ctx.stroke();
+
+  // نقاط مع ألوان مختلفة
+  axes.forEach((ax,i)=>{
+    const ang=(i/n)*2*Math.PI-Math.PI/2;
+    const r=Math.max(ax.score,0.05);
+    ctx.beginPath();
+    ctx.arc(cx+R*r*Math.cos(ang), cy+R*r*Math.sin(ang), 5, 0, Math.PI*2);
+    ctx.fillStyle=ax.color; ctx.fill();
+  });
+
+  // تسميات خارج الدائرة
+  ctx.font = '9px Cairo, sans-serif';
+  ctx.textAlign = 'center';
+  axes.forEach((ax,i)=>{
+    const ang=(i/n)*2*Math.PI-Math.PI/2;
+    const lx=cx+(R+16)*Math.cos(ang), ly=cy+(R+16)*Math.sin(ang);
+    ctx.fillStyle=ax.color; ctx.fillText(ax.label, lx, ly+3);
+  });
+
+  // Tooltip عند hover
+  if(tooltip) {
+    canvas.onmousemove = (e)=>{
+      const rect=canvas.getBoundingClientRect();
+      const mx=(e.clientX-rect.left)*(180/rect.width);
+      const my=(e.clientY-rect.top)*(180/rect.height);
+      let found=null;
+      axes.forEach((ax,i)=>{
+        const ang=(i/n)*2*Math.PI-Math.PI/2;
+        const r=Math.max(ax.score,0.05);
+        const px=cx+R*r*Math.cos(ang), py=cy+R*r*Math.sin(ang);
+        if(Math.hypot(mx-px,my-py)<14) found=ax;
+      });
+      if(found) {
+        tooltip.style.display='block';
+        tooltip.style.right = mx < 90 ? 'auto' : '0';
+        tooltip.style.left  = mx < 90 ? mx+10+'px' : 'auto';
+        tooltip.style.top   = my+10+'px';
+        tooltip.innerHTML=`<div style="font-weight:700;color:${found.color};margin-bottom:3px;">${found.label}</div><div style="color:var(--text-2);">${found.detail}</div>`;
+      } else {
+        tooltip.style.display='none';
+      }
+    };
+    canvas.onmouseleave=()=>{ tooltip.style.display='none'; };
+  }
+
+  // Legend
+  if(lblEl) {
+    lblEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:4px;">
+      ${axes.map(ax=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;">
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:${ax.color};flex-shrink:0;"></div>
+            <span style="color:var(--text-3);">${ax.label}</span>
+          </div>
+          <div style="background:var(--bg-4);border-radius:4px;overflow:hidden;width:60px;height:5px;">
+            <div style="height:100%;width:${Math.round(ax.score*100)}%;background:${ax.color};"></div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  }
+}
+
+// ============================================================
+//  السطر الثاني — 5 مربعات
+// ============================================================
+function renderPortfolio4KPIs() {
+  const el = document.getElementById('portfolio4KPIs');
+  if(!el) return;
+  const h = DB.holdings;
+  if(!h.length) { el.innerHTML=''; return; }
+
+  const {totalCost, totalVal, totalPnL, totalDiv} = getPortfolioTotals();
+  const riskFree = getRiskFreeRate();
+  const portPct  = totalCost>0?(totalPnL/totalCost*100):0;
+  const vsRate   = portPct - riskFree;
+  const totalReturn = totalPnL + totalDiv;
+  const retPct   = totalCost>0?(totalReturn/totalCost*100):0;
+
+  const results = h.map(x=>({
+    ...x,
+    pct: x.avgPrice?(x.currentPrice-x.avgPrice)/x.avgPrice*100:0,
+    weight: (x.qty*x.currentPrice)/totalVal*100
+  }));
+  const best     = [...results].sort((a,b)=>b.pct-a.pct)[0];
+  const worst    = [...results].sort((a,b)=>a.pct-b.pct)[0];
+  const heaviest = [...results].sort((a,b)=>b.weight-a.weight)[0];
+  const riskiest = [...results].filter(x=>x.pct<0).sort((a,b)=>a.pct-b.pct)[0] || worst;
+
+  const kpi = (icon,label,val,sub,color,border) => `
+    <div class="kpi" style="border-top:3px solid ${border};padding:12px 14px;">
+      <div style="font-size:10px;color:var(--text-3);margin-bottom:5px;">${icon} ${label}</div>
+      <div style="font-size:16px;font-weight:800;color:${color};font-family:var(--font-mono);">${val}</div>
+      <div style="font-size:10px;color:var(--text-3);margin-top:2px;">${sub}</div>
+    </div>`;
+
+  el.innerHTML =
+    kpi('📈','أفضل أداء', `${best.ticker} +${fmt(best.pct,1)}%`, best.name.slice(0,14), 'var(--green)', 'var(--green)') +
+    kpi('📉','أضعف أداء', `${worst.ticker} ${fmt(worst.pct,1)}%`, worst.name.slice(0,14), 'var(--red)', 'var(--red)') +
+    kpi('⚖️','أكبر وزن',  `${heaviest.ticker} ${fmt(heaviest.weight,1)}%`, heaviest.name.slice(0,14), 'var(--gold)', 'var(--gold)') +
+    kpi('⚠️','أكبر مخاطرة', `${riskiest.ticker} ${fmt(riskiest.pct,1)}%`, riskiest.sector||'—', 'var(--red)', 'rgba(255,77,109,0.4)') +
+    kpi('💰','العائد الكلي', `${sign(retPct)}${fmt(retPct,1)}%`, `${sign(totalReturn)}${fmt(totalReturn)} ج.م`, retPct>=0?'var(--gold)':'var(--red)', retPct>=0?'var(--gold)':'var(--red)');
+}
   const canvas = document.getElementById('snowflakeCanvas');
   const lblEl  = document.getElementById('snowflakeLabels');
   if(!canvas) return;
@@ -3184,188 +3426,45 @@ function renderSnowflake() {
   const withBeta = h.filter(x=>x.beta);
   const avgBeta  = withBeta.length ? withBeta.reduce((s,x)=>s+x.beta,0)/withBeta.length : 1;
 
-  // 5 محاور — normalize to 0-1
-  const scores = [
-    Math.min(Math.max((portPct/50), 0), 1),                  // القيمة / الأداء
-    Math.min(Math.max(divYield/15, 0), 1),                    // التوزيعات
-    Math.min(Math.max((sectors-1)/7, 0), 1),                  // التنويع
-    Math.min(Math.max((sharpeRaw+2)/4, 0), 1),               // المخاطر (Sharpe)
-    Math.min(Math.max((1-hhi), 0), 1),                        // التركز
-  ];
-  const labels = ['الأداء','التوزيعات','التنويع','Sharpe','تركز'];
-  const colors  = ['var(--gold)','var(--teal)','var(--blue)','var(--green)','var(--red)'];
+// ألوان القطاعات
+const SECTOR_COLORS_MAP = {
+  'بنوك وخدمات مالية':   '#d4a843',
+  'عقارات':              '#4da6ff',
+  'اتصالات وتكنولوجيا':  '#00d4b8',
+  'صناعة وتصنيع':        '#a78bfa',
+  'أسمدة وكيماويات':     '#34d399',
+  'غذاء ومشروبات':       '#f97316',
+  'رعاية صحية وأدوية':   '#ec4899',
+  'طاقة وبترول':         '#fbbf24',
+  'مواد بناء وأسمنت':    '#94a3b8',
+  'موارد أساسية وتعدين': '#78716c',
+  'تجزئة وتوزيع':        '#60a5fa',
+  'سياحة وفنادق':        '#f472b6',
+  'نقل ولوجستيات':       '#a3e635',
+  'تأمين':               '#38bdf8',
+  'أخرى':                '#6b7280',
+};
 
-  const cx=100, cy=100, R=75, n=5;
-  ctx.clearRect(0,0,200,200);
-
-  // شبكة خلفية
-  for(let r=0.25; r<=1; r+=0.25) {
-    ctx.beginPath();
-    for(let i=0;i<n;i++) {
-      const ang = (i/n)*2*Math.PI - Math.PI/2;
-      const x=cx+R*r*Math.cos(ang), y=cy+R*r*Math.sin(ang);
-      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-    }
-    ctx.closePath();
-    ctx.strokeStyle='rgba(255,255,255,0.07)';
-    ctx.lineWidth=1;
-    ctx.stroke();
-  }
-
-  // خطوط المحاور
-  for(let i=0;i<n;i++) {
-    const ang=(i/n)*2*Math.PI-Math.PI/2;
-    ctx.beginPath();
-    ctx.moveTo(cx,cy);
-    ctx.lineTo(cx+R*Math.cos(ang), cy+R*Math.sin(ang));
-    ctx.strokeStyle='rgba(255,255,255,0.1)';
-    ctx.stroke();
-  }
-
-  // المنطقة الملوّنة
-  ctx.beginPath();
-  for(let i=0;i<n;i++) {
-    const ang=(i/n)*2*Math.PI-Math.PI/2;
-    const r=Math.max(scores[i],0.05);
-    const x=cx+R*r*Math.cos(ang), y=cy+R*r*Math.sin(ang);
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  }
-  ctx.closePath();
-  ctx.fillStyle='rgba(212,168,67,0.25)';
-  ctx.fill();
-  ctx.strokeStyle='var(--gold)';
-  ctx.lineWidth=2;
-  ctx.stroke();
-
-  // نقاط المحاور
-  for(let i=0;i<n;i++) {
-    const ang=(i/n)*2*Math.PI-Math.PI/2;
-    const r=Math.max(scores[i],0.05);
-    ctx.beginPath();
-    ctx.arc(cx+R*r*Math.cos(ang), cy+R*r*Math.sin(ang), 4, 0, Math.PI*2);
-    ctx.fillStyle='var(--gold)';
-    ctx.fill();
-  }
-
-  // Legend تحت الدائرة
-  if(lblEl) {
-    const sharpeText = sharpeRaw>=1?'ممتاز':sharpeRaw>=0?'مقبول':'ضعيف';
-    const hhiText    = hhi<0.25?'منخفض':hhi<0.4?'متوسط':'مرتفع';
-    const betaText   = avgBeta<0.8?'أقل تقلباً':avgBeta>1.2?'أكثر تقلباً':'متوازن';
-    lblEl.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:5px;width:100%;">
-        <div style="display:flex;justify-content:space-between;font-size:10px;"><span style="color:var(--text-3);">Sharpe</span><span style="color:var(--gold);font-weight:700;">${fmt(sharpeRaw,2)} — ${sharpeText}</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;"><span style="color:var(--text-3);">بيتا β</span><span style="color:var(--gold);font-weight:700;">${fmt(avgBeta,2)} — ${betaText}</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;"><span style="color:var(--text-3);">تقلب العوائد</span><span style="color:var(--gold);font-weight:700;">${fmt(stdDev,1)}%</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;"><span style="color:var(--text-3);">تركز HHI</span><span style="color:var(--gold);font-weight:700;">${fmt(hhi,3)} — ${hhiText}</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:10px;"><span style="color:var(--text-3);">مقابل الفائدة</span><span style="color:${portPct>=riskFree?'var(--green)':'var(--red)'};font-weight:700;">${portPct>=riskFree?'✅ أعلى':'⚠️ أقل'}</span></div>
-      </div>`;
-  }
+function getSectorColor(sector) {
+  return SECTOR_COLORS_MAP[sector] || '#6b7280';
 }
 
-// ============================================================
-//  السطر الثاني — الـ 4 مربعات
-// ============================================================
-function renderPortfolio4KPIs() {
-  const el = document.getElementById('portfolio4KPIs');
-  if(!el) return;
-  const h = DB.holdings;
-  if(!h.length) { el.innerHTML=''; return; }
-
-  const {totalVal} = getPortfolioTotals();
-  const results = h.map(x=>({
-    ...x,
-    pct: x.avgPrice?(x.currentPrice-x.avgPrice)/x.avgPrice*100:0,
-    weight: (x.qty*x.currentPrice)/totalVal*100
-  }));
-  const best     = [...results].sort((a,b)=>b.pct-a.pct)[0];
-  const worst    = [...results].sort((a,b)=>a.pct-b.pct)[0];
-  const heaviest = [...results].sort((a,b)=>b.weight-a.weight)[0];
-  const riskiest = [...results].filter(x=>x.pct<0).sort((a,b)=>a.pct-b.pct)[0] || worst;
-
-  const kpi = (icon,label,ticker,val,color,sub='') => `
-    <div class="kpi" style="border-top:3px solid ${color};padding:14px 16px;">
-      <div style="font-size:10px;color:var(--text-3);margin-bottom:6px;">${icon} ${label}</div>
-      <div style="font-size:18px;font-weight:800;color:${color};">${ticker}</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:${color};font-weight:700;">${val}</div>
-      ${sub?`<div style="font-size:10px;color:var(--text-3);margin-top:2px;">${sub}</div>`:''}
-    </div>`;
-
-  el.innerHTML =
-    kpi('📈','أفضل أداء',best.ticker,`+${fmt(best.pct,1)}%`,'var(--green)') +
-    kpi('📉','أضعف أداء',worst.ticker,`${fmt(worst.pct,1)}%`,'var(--red)') +
-    kpi('⚖️','أكبر وزن',heaviest.ticker,`${fmt(heaviest.weight,1)}%`,'var(--gold)',`من المحفظة`) +
-    kpi('⚠️','أكبر مخاطرة',riskiest.ticker,`${fmt(riskiest.pct,1)}%`,'var(--red)',`${riskiest.sector||'—'}`);
+function calcStockRating(x) {
+  let score = 0;
+  const pct = x.avgPrice?(x.currentPrice-x.avgPrice)/x.avgPrice*100:0;
+  if(pct>50) score+=25; else if(pct>20) score+=15; else if(pct>0) score+=5; else if(pct<-20) score-=15; else if(pct<0) score-=5;
+  if(x.pe) { if(x.pe<8) score+=25; else if(x.pe<15) score+=12; else if(x.pe>30) score-=10; }
+  if(x.roe) { if(x.roe>=20) score+=20; else if(x.roe>=12) score+=10; else if(x.roe<5) score-=10; }
+  if(x.eps && x.bvps) { const g=Math.sqrt(22.5*x.eps*x.bvps); if(x.currentPrice<g) score+=15; }
+  if(x.roa) { if(x.roa>=8) score+=10; else if(x.roa<2) score-=5; }
+  if(score>=60) return {grade:'A+',color:'var(--green)',bg:'rgba(0,230,118,0.15)'};
+  if(score>=45) return {grade:'A', color:'var(--green)',bg:'rgba(0,230,118,0.10)'};
+  if(score>=30) return {grade:'B', color:'var(--teal)', bg:'rgba(0,212,184,0.12)'};
+  if(score>=15) return {grade:'C', color:'var(--gold)', bg:'rgba(212,168,67,0.12)'};
+  if(score>=0)  return {grade:'D', color:'var(--red)',  bg:'rgba(255,77,109,0.12)'};
+  return              {grade:'F', color:'#ff1744',      bg:'rgba(255,23,68,0.15)'};
 }
 
-// ============================================================
-//  السطر الثالث — الجدول الكامل
-// ============================================================
-let showAllPerformers = false;
-
-function renderTopPerformers() {
-  const el = document.getElementById('topPerformers');
-  if(!el) return;
-  const {totalVal} = getPortfolioTotals();
-  const h = [...DB.holdings].map(x=>({
-    ...x,
-    pct: x.avgPrice?(x.currentPrice-x.avgPrice)/x.avgPrice*100:0,
-    weight: totalVal>0?(x.qty*x.currentPrice/totalVal*100):0,
-    pnl: (x.currentPrice-x.avgPrice)*x.qty
-  })).sort((a,b)=>b.pct-a.pct);
-
-  if(!h.length){el.innerHTML='<div class="empty-state"><div class="icon">📋</div><h3>لا يوجد أسهم</h3></div>';return;}
-
-  const limit = showAllPerformers ? h.length : Math.min(8, h.length);
-  const displayed = h.slice(0, limit);
-
-  const thead = `<tr>
-    <th style="width:32px;">#</th>
-    <th>السهم</th>
-    <th>القطاع</th>
-    <th>الكمية</th>
-    <th>الوزن</th>
-    <th>متوسط الشراء</th>
-    <th>السعر الحالي</th>
-    <th>ر/خ</th>
-    <th>ر/خ%</th>
-  </tr>`;
-
-  const rankColor = i => i===0?'var(--gold)':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--text-3)';
-
-  const rows = displayed.map((x,i)=>`<tr>
-    <td style="text-align:center;"><span style="font-size:11px;font-weight:800;color:${rankColor(i)};">${i+1}</span></td>
-    <td><div class="stock-cell">
-      <div class="stock-dot" style="background:${getColor(x.ticker)}"></div>
-      <div class="stock-info"><div class="name">${x.name}</div><div class="ticker">${x.ticker}</div></div>
-    </div></td>
-    <td style="font-size:11px;color:var(--text-3);">${x.sector||'—'}</td>
-    <td class="mono">${fmtI(x.qty)}</td>
-    <td>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <div style="width:50px;height:5px;background:var(--bg-4);border-radius:3px;overflow:hidden;">
-          <div style="height:100%;width:${Math.min(x.weight,100)}%;background:var(--gold);border-radius:3px;"></div>
-        </div>
-        <span class="mono" style="font-size:11px;color:var(--text-3);">${fmt(x.weight,1)}%</span>
-      </div>
-    </td>
-    <td class="mono">${fmt(x.avgPrice)}</td>
-    <td class="mono">${fmt(x.currentPrice)}</td>
-    <td class="mono" style="color:${x.pnl>=0?'var(--green)':'var(--red)'};">${sign(x.pnl)}${fmt(Math.abs(x.pnl))}</td>
-    <td><span class="tag ${upDown(x.pct)}">${sign(x.pct)}${fmt(x.pct,1)}%</span></td>
-  </tr>`).join('');
-
-  el.innerHTML = `<table class="data-table"><thead>${thead}</thead><tbody>${rows}</tbody></table>`;
-
-  if(h.length>8) {
-    el.innerHTML += `<div style="text-align:center;padding:10px;border-top:1px solid var(--border);">
-      <button onclick="showAllPerformers=!showAllPerformers;renderTopPerformers();"
-        style="background:none;border:1px solid var(--border);border-radius:6px;padding:5px 16px;color:var(--text-3);font-family:var(--font-ar);font-size:11px;cursor:pointer;">
-        ${showAllPerformers?'▲ عرض أقل':'▼ عرض الكل ('+h.length+')'}
-      </button>
-    </div>`;
-  }
-}
 
 // ============================================================
 //  تصدير الجدول
@@ -3658,20 +3757,27 @@ function populateDivSelect() {
 //  SUBMIT TRADE
 // ============================================================
 function submitTrade() {
-  const name=document.getElementById('f_name').value.trim();
-  const ticker=document.getElementById('f_ticker').value.trim().toUpperCase();
-  const qty=parseFloat(document.getElementById('f_qty').value);
-  const price=txType==='bonus'?0:(parseFloat(document.getElementById('f_price').value));
-  const curr=price; // السعر الحالي = سعر التنفيذ في البداية
-  const pe=null, eps=null, bvps=null, roe=null, roa=null, beta=null, revenue=null, netincome=null;
-  const sector=document.getElementById('f_sector').value;
-  const date=document.getElementById('f_date').value;
-  const target=parseFloat(document.getElementById('f_target').value)||null;
-  const notes=document.getElementById('f_notes').value.trim();
+  // استرجاع الاسم — سواء من القائمة أو من الإدخال اليدوي
+  const selectedTicker = document.getElementById('f_stock_select')?.value;
+  const isExisting = selectedTicker && selectedTicker !== '__new__';
 
-  if(!name||!ticker||!qty||!date){toast('من فضلك أملأ جميع الحقول المطلوبة','error');return;}
-  if(txType!=='bonus'&&!price){toast('أدخل سعر التنفيذ','error');return;}
-  if(!curr){toast('أدخل السعر الحالي','error');return;}
+  const name   = isExisting
+    ? (DB.holdings.find(h=>h.ticker===selectedTicker)?.name || document.getElementById('f_name').value.trim())
+    : document.getElementById('f_name').value.trim();
+  const ticker = isExisting ? selectedTicker : document.getElementById('f_ticker').value.trim().toUpperCase();
+  const qty    = parseFloat(document.getElementById('f_qty').value);
+  const price  = txType==='bonus' ? 0 : parseFloat(document.getElementById('f_price').value);
+  const curr   = price || 0;
+  const pe=null, eps=null, bvps=null, roe=null, roa=null, beta=null, revenue=null, netincome=null;
+  const sector = document.getElementById('f_sector').value;
+  const date   = document.getElementById('f_date').value;
+  const target = parseFloat(document.getElementById('f_target').value)||null;
+  const notes  = document.getElementById('f_notes').value.trim();
+
+  if(!name||!ticker){toast('من فضلك أدخل اسم الشركة والرمز','error');return;}
+  if(!qty||qty<=0){toast('من فضلك أدخل كمية صحيحة','error');return;}
+  if(!date){toast('من فضلك أدخل تاريخ الصفقة','error');return;}
+  if(txType!=='bonus'&&(!price||price<=0)){toast('أدخل سعر التنفيذ','error');return;}
 
   // Record transaction with correct type label
   DB.transactions.unshift({type:txType,name,ticker,qty,price,date,notes,id:Date.now()});
