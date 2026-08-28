@@ -5378,7 +5378,7 @@ async function autoRefreshPrices() {
       updated++;
       checkAlerts(h.ticker, price);
     } else { failed.push(h.ticker); }
-    await new Promise(r=>setTimeout(r,400));
+    await new Promise(r=>setTimeout(r,40));
   }
 
   const now = new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
