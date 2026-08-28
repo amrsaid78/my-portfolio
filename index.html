@@ -5353,50 +5353,101 @@ async function fetchYahooPrice(ticker) {
   return null;
 }
 
+// ============================================================
+//  تحديث الأسعار الجماعي (Batch Fetch) - سريع جداً ويحل مشكلة التجزئة
+// ============================================================
 async function autoRefreshPrices() {
-  if(!DB.holdings.length) { toast('أضف أسهم أولاً', 'error'); return; }
-  if(_priceUpdateState.status === 'updating') return;
+  if (!DB.holdings || !DB.holdings.length) { toast('أضف أسهم أولاً', 'error'); return; }
+  if (_priceUpdateState.status === 'updating') return;
 
   const total = DB.holdings.length;
-  _priceUpdateState = { status:'updating', failed:[], lastUpdate:null, total, done:0 };
-  setPriceBtn('updating', `0 / ${total}`);
+  _priceUpdateState = { status: 'updating', failed: [], lastUpdate: null, total, done: 0 };
+  setPriceBtn('updating', `جاري جلب ${total} سهم...`);
 
-  let updated = 0, failed = [];
+  try {
+    // 1. جمع كل رموز الأسهم في نص واحد مفصول بفاصلة (مثال: COMI.CA,PHDC.CA)
+    const tickers = DB.holdings.map(h => h.ticker).join(',');
+    
+    // 2. رابط Yahoo Finance Batch API (يجلب كل الأسعار في طلب واحد)
+    const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${tickers}`;
+    
+    // 3. نستخدم Proxy موثوق لتجاوز مشكلة حظر المتصفح (CORS)
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
 
-  for(let i=0; i<DB.holdings.length; i++) {
-    const h = DB.holdings[i];
-    setPriceBtn('updating', `${i+1} / ${total}: ${h.ticker}`);
-    const price = await fetchYahooPrice(h.ticker);
-    if(price) {
-      if(!h.priceHistory) h.priceHistory=[];
-      const today = new Date().toISOString().split('T')[0];
-      const entry = h.priceHistory.find(p=>p.d===today);
-      if(entry) entry.p=price;
-      else h.priceHistory.push({d:today, p:price});
-      if(h.priceHistory.length>180) h.priceHistory=h.priceHistory.slice(-180);
-      h.currentPrice=price;
-      updated++;
-      checkAlerts(h.ticker, price);
-    } else { failed.push(h.ticker); }
-    await new Promise(r=>setTimeout(r,400));
-  }
+    const response = await fetch(proxyUrl);
+    const data = await response.json();
 
-  const now = new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
-  _priceUpdateState.done    = updated;
-  _priceUpdateState.failed  = failed;
-  _priceUpdateState.lastUpdate = now;
+    if (!data.quoteResponse || !data.quoteResponse.result) {
+      throw new Error('فشل في جلب البيانات من المصدر');
+    }
 
-  save(); renderDashboard(); renderFullHoldings();
+    let updated = 0;
+    let failed = [];
+    const today = new Date().toISOString().split('T')[0];
 
-  if(failed.length === 0) {
-    setPriceBtn('success');
-    toast(`✅ تم تحديث ${updated} سهم — ${now}`);
-  } else if(updated > 0) {
+    // 4. تحديث البيانات في قاعدة البيانات بسرعة
+    data.quoteResponse.result.forEach(quote => {
+      const ticker = quote.symbol;
+      const price = quote.regularMarketPrice;
+
+      if (price) {
+        const h = DB.holdings.find(x => x.ticker === ticker);
+        if (h) {
+          h.currentPrice = price;
+          
+          // تحديث سجل التاريخ
+          if (!h.priceHistory) h.priceHistory = [];
+          const entry = h.priceHistory.find(p => p.d === today);
+          if (entry) {
+            entry.p = price;
+          } else {
+            h.priceHistory.push({ d: today, p: price });
+          }
+          
+          // الاحتفاظ بآخر 180 يوم فقط لتوفير المساحة
+          if (h.priceHistory.length > 180) {
+            h.priceHistory = h.priceHistory.slice(-180);
+          }
+          
+          updated++;
+          
+          // فحص التنبيهات فوراً
+          if (typeof checkAlerts === 'function') {
+            checkAlerts(h.ticker, price);
+          }
+        }
+      } else {
+        failed.push(ticker);
+      }
+    });
+
+    // 5. حفظ البيانات وتحديث الشاشة
+    const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    _priceUpdateState.done = updated;
+    _priceUpdateState.failed = failed;
+    _priceUpdateState.lastUpdate = now;
+
+    save(); 
+    renderDashboard(); 
+    if (typeof renderFullHoldings === 'function') renderFullHoldings();
+    if (typeof renderWatchlist === 'function') renderWatchlist();
+
+    // 6. رسائل النجاح أو التنبيه
+    if (failed.length === 0) {
+      setPriceBtn('success');
+      toast(`✅ تم تحديث ${updated} سهم بنجاح في ثانية واحدة! — ${now}`);
+    } else if (updated > 0) {
+      setPriceBtn('partial');
+      toast(`✅ تم تحديث ${updated} سهم · ⚠️ فشل: ${failed.join(', ')}`);
+    } else {
+      setPriceBtn('partial');
+      toast('⚠️ تعذر التحديث تماماً — تأكد من الاتصال بالإنترنت', 'error');
+    }
+
+  } catch (error) {
+    console.error('خطأ في تحديث الأسعار:', error);
     setPriceBtn('partial');
-    toast(`✅ ${updated} تم · ⚠️ فشل: ${failed.join(', ')}`);
-  } else {
-    setPriceBtn('partial');
-    toast('⚠️ تعذر التحديث — تأكد من الاتصال', 'error');
+    toast('❌ حدث خطأ أثناء جلب الأسعار', 'error');
   }
 }
 
