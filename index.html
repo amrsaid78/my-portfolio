@@ -5353,108 +5353,50 @@ async function fetchYahooPrice(ticker) {
   return null;
 }
 
-// ============================================================
-//  تحديث الأسعار على دفعات صغيرة (Chunked Fetching) - الحل الأمثل
-// ============================================================
 async function autoRefreshPrices() {
-  if (!DB.holdings || !DB.holdings.length) { toast('أضف أسهم أولاً', 'error'); return; }
-  if (_priceUpdateState.status === 'updating') return;
+  if(!DB.holdings.length) { toast('أضف أسهم أولاً', 'error'); return; }
+  if(_priceUpdateState.status === 'updating') return;
 
   const total = DB.holdings.length;
-  _priceUpdateState = { status: 'updating', failed: [], lastUpdate: null, total, done: 0 };
-  setPriceBtn('updating', `جاري التحديث...`);
+  _priceUpdateState = { status:'updating', failed:[], lastUpdate:null, total, done:0 };
+  setPriceBtn('updating', `0 / ${total}`);
 
-  let updated = 0;
-  let failed = [];
-  const today = new Date().toISOString().split('T')[0];
+  let updated = 0, failed = [];
 
-  // 1. تقسيم الأسهم إلى مجموعات صغيرة (5 أسهم في كل طلب)
-  const tickers = DB.holdings.map(h => h.ticker);
-  const chunkSize = 5; 
-
-  for (let i = 0; i < tickers.length; i += chunkSize) {
-    const chunk = tickers.slice(i, i + chunkSize);
-    const symbols = chunk.join(',');
-    
-    // 2. استخدام corsproxy.io (أكثر استقراراً مع Yahoo Finance)
-    const apiUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`;
-    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
-
-    try {
-      const response = await fetch(proxyUrl);
-      
-      // التحقق من أن الرد هو JSON صالح
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("الرد ليس بصيغة JSON");
-      }
-
-      const data = await response.json();
-
-      if (data.quoteResponse && data.quoteResponse.result) {
-        data.quoteResponse.result.forEach(quote => {
-          const ticker = quote.symbol;
-          const price = quote.regularMarketPrice;
-
-          if (price && price > 0) {
-            const h = DB.holdings.find(x => x.ticker === ticker);
-            if (h) {
-              h.currentPrice = price;
-              
-              // تحديث السجل التاريخي
-              if (!h.priceHistory) h.priceHistory = [];
-              const entry = h.priceHistory.find(p => p.d === today);
-              if (entry) {
-                entry.p = price;
-              } else {
-                h.priceHistory.push({ d: today, p: price });
-              }
-              
-              if (h.priceHistory.length > 180) {
-                h.priceHistory = h.priceHistory.slice(-180);
-              }
-              
-              updated++;
-              if (typeof checkAlerts === 'function') checkAlerts(h.ticker, price);
-            }
-          } else {
-            failed.push(ticker);
-          }
-        });
-      } else {
-        // إذا كان الرد فارغاً، نعتبر هذه المجموعة فاشلة
-        failed.push(...chunk);
-      }
-    } catch (err) {
-      console.warn(`فشل في جلب المجموعة:`, chunk, err);
-      failed.push(...chunk);
-    }
-
-    // 3. تأخير بسيط جداً (200ms) بين كل مجموعة لتجنب حظر Yahoo
-    await new Promise(r => setTimeout(r, 200));
+  for(let i=0; i<DB.holdings.length; i++) {
+    const h = DB.holdings[i];
+    setPriceBtn('updating', `${i+1} / ${total}: ${h.ticker}`);
+    const price = await fetchYahooPrice(h.ticker);
+    if(price) {
+      if(!h.priceHistory) h.priceHistory=[];
+      const today = new Date().toISOString().split('T')[0];
+      const entry = h.priceHistory.find(p=>p.d===today);
+      if(entry) entry.p=price;
+      else h.priceHistory.push({d:today, p:price});
+      if(h.priceHistory.length>180) h.priceHistory=h.priceHistory.slice(-180);
+      h.currentPrice=price;
+      updated++;
+      checkAlerts(h.ticker, price);
+    } else { failed.push(h.ticker); }
+    await new Promise(r=>setTimeout(r,400));
   }
 
-  // 4. الحفظ وتحديث الواجهة
-  const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-  _priceUpdateState.done = updated;
-  _priceUpdateState.failed = failed;
+  const now = new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
+  _priceUpdateState.done    = updated;
+  _priceUpdateState.failed  = failed;
   _priceUpdateState.lastUpdate = now;
 
-  save(); 
-  renderDashboard(); 
-  if (typeof renderFullHoldings === 'function') renderFullHoldings();
-  if (typeof renderWatchlist === 'function') renderWatchlist();
+  save(); renderDashboard(); renderFullHoldings();
 
-  // 5. رسائل النتيجة
-  if (failed.length === 0) {
+  if(failed.length === 0) {
     setPriceBtn('success');
-    toast(`✅ تم تحديث ${updated} سهم بنجاح! — ${now}`);
-  } else if (updated > 0) {
+    toast(`✅ تم تحديث ${updated} سهم — ${now}`);
+  } else if(updated > 0) {
     setPriceBtn('partial');
-    toast(`✅ تم تحديث ${updated} سهم · ⚠️ فشل: ${failed.join(', ')}`);
+    toast(`✅ ${updated} تم · ⚠️ فشل: ${failed.join(', ')}`);
   } else {
     setPriceBtn('partial');
-    toast('⚠️ تعذر التحديث تماماً. (قد يكون Yahoo Finance يحظر الطلبات مؤقتاً)', 'error');
+    toast('⚠️ تعذر التحديث — تأكد من الاتصال', 'error');
   }
 }
 
